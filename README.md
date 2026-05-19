@@ -28,3 +28,7 @@ For that user should download and install the package corresponding to their PC 
 
 During development, folders *uploads* and *database* should be copied to the build artifacts folder(e.g. build/Desktop-Debug) in order for the photos and database be found by *QCoreApplication::applicationDirPath()*.
 Also make sure the respective folders in project root and in build are in sync.
+
+# Demo
+
+![](https://github.com/Benedito821/access-control-desktop/blob/master/demo.gif)
