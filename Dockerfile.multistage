@@ -1,0 +1,131 @@
+FROM debian:12 as builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install build tools and all dependencies using Debian 12 names
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    wget \
+    ninja-build \
+    pkg-config \
+    file \
+    # Basic dependencies
+    libgl1-mesa-dev \
+    libglu1-mesa-dev \
+    # X11 and XCB dependencies
+    libx11-dev \
+    libxext-dev \
+    libxfixes-dev \
+    libxi-dev \
+    libxrender-dev \
+    # Most X dependencies are fine or implicit
+    libxrandr-dev \
+    libxcomposite-dev \
+    libxcursor-dev \
+    # XCB dependencies
+    libxcb1-dev \
+    libxcb-cursor-dev \
+    libxcb-icccm4-dev \
+    libxcb-image0-dev \
+    libxcb-keysyms1-dev \
+    libxcb-randr0-dev \
+    libxcb-render-util0-dev \
+    libxcb-render0-dev \
+    libxcb-shape0-dev \
+    libxcb-shm0-dev \
+    libxcb-sync-dev \
+    libxcb-xfixes0-dev \
+    libxcb-xinerama0-dev \
+    libxcb-xinput-dev \
+    libxcb-xkb-dev \
+    libxkbcommon-dev \
+    libxkbcommon-x11-dev \
+    # Qt6 Core Development packages (DEBIAN NAMES START WITH 'qt6-')
+    qt6-base-dev \
+    qt6-tools-dev \
+    qt6-l10n-tools \
+    qt6-httpserver-dev \
+    qt6-websockets-dev \
+    qt6-base-dev \
+    libqt6sql6-sqlite \
+    libqt6core6 \
+    libqt6gui6 \
+    libqt6widgets6 \
+    # AppImage tools
+    appstream \
+    desktop-file-utils \
+    # Add FUSE libraries and GStreamer which are often implicit dependencies of Qt tools
+    libfuse2 \
+    libgstreamer1.0-0 \
+    libgstreamer-plugins-base1.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# No longer useful ?
+RUN ln -sf /usr/lib/qt6/bin/lconvert /usr/bin/lconvert || true
+
+WORKDIR /workspace
+COPY . .
+
+# Build process
+RUN mkdir build && cd build && \
+    cmake .. \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DQT_VERSION_MAJOR=6 \
+        -DCMAKE_PREFIX_PATH="/usr/lib/x86_64-linux-gnu/cmake/Qt6" \
+        -DCMAKE_EXE_LINKER_FLAGS="-Wl,--as-needed -Wl,--no-undefined" && \
+    make -j$(nproc)
+
+# Download linuxdeploy
+RUN wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage \
+    && wget -q https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage \
+    && chmod +x linuxdeploy-x86_64.AppImage linuxdeploy-plugin-qt-x86_64.AppImage
+
+# Extract BOTH AppImage tools into unique directories
+RUN ./linuxdeploy-x86_64.AppImage --appimage-extract > /dev/null && mv squashfs-root ld_main
+RUN ./linuxdeploy-plugin-qt-x86_64.AppImage --appimage-extract > /dev/null && mv squashfs-root ld_plugin_qt
+
+RUN mv ld_plugin_qt/AppRun ld_plugin_qt/linuxdeploy-plugin-qt
+
+RUN rm linuxdeploy-x86_64.AppImage linuxdeploy-plugin-qt-x86_64.AppImage
+
+RUN mkdir -p \
+    AppDir/usr/bin/ \
+    AppDir/usr/lib/ \
+    AppDir/usr/share/applications/ \
+    AppDir/usr/share/icons/hicolor/16x16/apps \
+    AppDir/usr/share/icons/hicolor/32x32/apps \
+    AppDir/usr/share/icons/hicolor/48x48/apps \
+    AppDir/usr/share/icons/hicolor/64x64/apps \
+    AppDir/usr/share/icons/hicolor/128x128/apps \
+    AppDir/usr/share/icons/hicolor/256x256/apps \
+    AppDir/usr/share/icons/hicolor/512x512/apps
+
+RUN cp build/access-control-admin AppDir/usr/bin/access-control-admin
+
+RUN cp -r uploads AppDir/usr/bin/
+
+RUN cp -r database AppDir/usr/bin/
+
+RUN cp packaging/access-control-admin.desktop AppDir/usr/share/applications/access-control-admin.desktop
+
+RUN for size in 16 32 48 64 128 256 512; do \
+    cp packaging/${size}.png \
+       AppDir/usr/share/icons/hicolor/${size}x${size}/apps/access-control-admin.png ; \
+done
+
+# Execute the main AppRun while ensuring the plugin path is visible
+# We add the ld_plugin_qt directory to the PATH
+
+RUN export PATH=$PATH:$(pwd)/ld_plugin_qt && \
+    ./ld_main/AppRun \
+        --appdir AppDir \
+        --plugin qt \
+        --output appimage
+
+# Extracting the artifact
+FROM ubuntu:22.04 as final
+COPY --from=builder /workspace/Access_Control_Admin-x86_64.AppImage /output/
+
+CMD cp /workspace/Access_Control_Admin-x86_64.AppImage /output/

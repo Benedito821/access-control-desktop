@@ -70,7 +70,7 @@ void admin::updateUi(ACCESS_STATE access, const QString& name, const QString& ph
     QPixmap pix(photo);
 
     ui->photoLabel->setPixmap(
-        pix.scaled(300, 300, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation));
+        pix.scaled(300, 300, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
 }
 
 void admin::setupHttpServer()
@@ -112,7 +112,9 @@ void admin::setupHttpServer()
                        response["name"] = name;
                        response["photo"] = photo;
 
-                       updateUi(static_cast<ACCESS_STATE>(access), name, photo);
+                       QString photoPath = QCoreApplication::applicationDirPath() + "/" + photo;
+
+                       updateUi(static_cast<ACCESS_STATE>(access), name, photoPath);
                    }
                    else
                    {

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Access Control Admin
+Comment=RFID Access Control System
+Exec=access-control-admin
+Icon=access-control-admin
+Terminal=false
+Categories=System;Security;
+StartupNotify=true
