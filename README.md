@@ -27,3 +27,4 @@ The resulting file can be found in the dist/. Appimage Launcher may be used to i
 For that user should download and install the package corresponding to their PC architecture from it's [repo](https://github.com/TheAssassin/AppImageLauncher/releases/tag/continuous). 
 
 During development, folders *uploads* and *database* should be copied to the build artifacts folder(e.g. build/Desktop-Debug) in order for the photos and database be found by *QCoreApplication::applicationDirPath()*.
+Also make sure the respective folders in project root and in build are in sync.
